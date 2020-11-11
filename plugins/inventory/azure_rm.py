@@ -206,11 +206,9 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         self._filters = self.get_option('exclude_host_filters') + self.get_option('default_host_filters')
 
         
-
-
         try:
             self._credential_setup()
-            self._get_hosts()
+            self._get_hosts(cache=cache)
         except Exception:
             raise
 
@@ -261,9 +259,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         url = url.format(subscriptionId=self._clientconfig.subscription_id, rg=rg)
         self._enqueue_get(url=url, api_version=self._compute_api_version, handler=self._on_vmss_page_response)
 
-    def _get_hosts(self):
-
-
+    def _get_hosts(self, cache):
         # Cache logic
         if cache:
             cache = self.get_option("cache")
