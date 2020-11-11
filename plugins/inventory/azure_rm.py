@@ -294,7 +294,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             for h in self._hosts:
                 cached_data.append({
                     'vm_model': h._vm_model,
-                    'vmss': h.vmss
+                    'vmss': h._vmss
                 })
             self._cache[cache_key] = cached_data
 
