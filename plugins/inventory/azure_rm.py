@@ -312,6 +312,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             inventory_hostname = self._get_hostname(h, hostnames=constructable_hostnames, strict=constructable_config_strict)
 
             print(inventory_hostname)
+            print(h.hostvars)
+            
             if self._filter_host(inventory_hostname, h.hostvars):
                 continue
             self.inventory.add_host(inventory_hostname)
