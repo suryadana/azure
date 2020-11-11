@@ -208,7 +208,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         
         try:
             self._credential_setup()
-            self._get_hosts(cache=cache)
+            self._get_hosts(path=path, cache=cache)
         except Exception:
             raise
 
@@ -259,7 +259,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         url = url.format(subscriptionId=self._clientconfig.subscription_id, rg=rg)
         self._enqueue_get(url=url, api_version=self._compute_api_version, handler=self._on_vmss_page_response)
 
-    def _get_hosts(self, cache):
+    def _get_hosts(self, path, cache):
         # Cache logic
         if cache:
             cache = self.get_option("cache")
