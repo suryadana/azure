@@ -313,9 +313,12 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 
             print(inventory_hostname)
             print(h.hostvars)
-            
+
             if self._filter_host(inventory_hostname, h.hostvars):
                 continue
+
+            print(222, inventory_hostname)
+
             self.inventory.add_host(inventory_hostname)
             # FUTURE: configurable default IP list? can already do this via hostvar_expressions
             self.inventory.set_variable(inventory_hostname, "ansible_host",
