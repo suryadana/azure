@@ -272,7 +272,6 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             try:
                 results = self._cache[cache_key]
                 for h in results:
-                  print(h)
                   self._hosts.append(AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames))
             except KeyError:
                 cache_needs_update = True
@@ -311,6 +310,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             print(h)
             # FUTURE: track hostnames to warn if a hostname is repeated (can happen for legacy and for composed inventory_hostname)
             inventory_hostname = self._get_hostname(h, hostnames=constructable_hostnames, strict=constructable_config_strict)
+
+            print(inventory_hostname)
             if self._filter_host(inventory_hostname, h.hostvars):
                 continue
             self.inventory.add_host(inventory_hostname)
