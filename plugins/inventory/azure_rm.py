@@ -523,6 +523,8 @@ class AzureHost(object):
             inventory_client._enqueue_get(url="{0}/instanceView".format(vm_model['id']),
                                         api_version=self._inventory_client._compute_api_version,
                                         handler=self._on_instanceview_response)
+        else:
+            self._powerstate = powerstate
 
         nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
         for nic in nic_refs:
