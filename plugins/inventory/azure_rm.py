@@ -314,8 +314,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             print(inventory_hostname)
             print(h.hostvars)
 
-            #if self._filter_host(inventory_hostname, h.hostvars):
-            #    continue
+            if self._filter_host(inventory_hostname, h.hostvars):
+                continue
 
             print(222, inventory_hostname)
 
