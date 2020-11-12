@@ -154,7 +154,7 @@ class AzureRMRestConfiguration(AzureConfiguration):
 UrlAction = namedtuple('UrlAction', ['url', 'api_version', 'handler', 'handler_args'])
 
 
-# FUTURE: add Cacheable support once we have a sane serialization format
+# ( Azure has no FUTURE, Baby RQ has to implement cachable supporting by herself. )
 class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 
     NAME = 'azure.azcollection.azure_rm'
@@ -308,19 +308,11 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         constructable_hostnames = self.get_option('hostnames')
 
         for h in self._hosts:
-            print(h)
             # FUTURE: track hostnames to warn if a hostname is repeated (can happen for legacy and for composed inventory_hostname)
             inventory_hostname = self._get_hostname(h, hostnames=constructable_hostnames, strict=constructable_config_strict)
 
-            print(inventory_hostname)
-            print(h.hostvars)
-
             if self._filter_host(inventory_hostname, h.hostvars):
                 continue
-
-            print(222, inventory_hostname)
-
-            print(self._filters)
 
             self.inventory.add_host(inventory_hostname)
             # FUTURE: configurable default IP list? can already do this via hostvar_expressions
