@@ -12,6 +12,7 @@ DOCUMENTATION = r'''
       - azure.azcollection.azure
       - azure.azcollection.azure_rm
       - inventory_cache
+      - constructed
     description:
         - Query VM details from Azure Resource Manager
         - Requires a YAML configuration file whose name ends with 'azure_rm.(yml|yaml)'
@@ -127,10 +128,20 @@ from ansible.errors import AnsibleParserError, AnsibleError
 from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.module_utils._text import to_native, to_bytes, to_text
 from itertools import chain
-from msrest import ServiceClient, Serializer, Deserializer
-from msrestazure import AzureConfiguration
-from msrestazure.polling.arm_polling import ARMPolling
-from msrestazure.tools import parse_resource_id
+
+try:
+    from msrest import ServiceClient, Serializer, Deserializer
+    from msrestazure import AzureConfiguration
+    from msrestazure.polling.arm_polling import ARMPolling
+    from msrestazure.tools import parse_resource_id
+except ImportError:
+    AzureConfiguration = object
+    ARMPolling = object
+    parse_resource_id = object
+    ServiceClient = object
+    Serializer = object
+    Deserializer = object
+    pass
 
 
 class AzureRMRestConfiguration(AzureConfiguration):
@@ -554,7 +565,7 @@ class AzureHost(object):
             id=self._vm_model['id'],
             location=self._vm_model['location'],
             name=self._vm_model['name'],
-            computer_name=self._vm_model['properties']['osProfile'].get('computerName'),
+            computer_name=self._vm_model['properties'].get('osProfile', {}).get('computerName'),
             availability_zone=av_zone,
             powerstate=self._powerstate,
             provisioning_state=self._vm_model['properties']['provisioningState'].lower(),
