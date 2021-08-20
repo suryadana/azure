@@ -289,11 +289,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             try:
                 results = self._cache[cache_key]
                 for h in results:
-                    ah = AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate'], update_nics=False)
-
-                    for n in h['nics']:
-                        nic = AzureNic(nic_model=n['nic_model'], inventory_client=self, is_primary=n['is_primary'])
-                        ah.nics.append(nic)
+                    ah = AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate'], nics=h['nics'])
 
                     self._hosts.append(ah)
 
@@ -522,7 +518,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 class AzureHost(object):
     _powerstate_regex = re.compile('^PowerState/(?P<powerstate>.+)$')
 
-    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False, powerstate=None, update_nics=True):
+    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False, powerstate=None, nics=None):
         self._inventory_client = inventory_client
         self._vm_model = vm_model
         self._vmss = vmss
@@ -547,7 +543,11 @@ class AzureHost(object):
         else:
             self._powerstate = powerstate
 
-        if update_nics:
+        if nics:
+            for n in nics:
+                nic = AzureNic(nic_model=n['nic_model'], inventory_client=self, is_primary=n['is_primary'])
+                self.nics.append(nic)
+        else:
             nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
             for nic in nic_refs:
                 # single-nic instances don't set primary, so figure it out...
