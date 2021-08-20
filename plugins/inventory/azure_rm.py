@@ -4,6 +4,11 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+from ansible.utils.display import Display
+
+display = Display()
+
+
 DOCUMENTATION = r'''
     name: azure_rm
     plugin_type: inventory
@@ -248,6 +253,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         self._client = ServiceClient(self._clientconfig.credentials, self._clientconfig)
 
     def _enqueue_get(self, url, api_version, handler, handler_args=None):
+        display.vvvv("_enqueue_get %s" % url)
         if not handler_args:
             handler_args = {}
         self._request_queue.put_nowait(UrlAction(url=url, api_version=api_version, handler=handler, handler_args=handler_args))
@@ -283,7 +289,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             try:
                 results = self._cache[cache_key]
                 for h in results:
-                    ah = AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate'])
+                    ah = AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate'], update_nics=False)
 
                     for n in h['nics']:
                         nic = AzureNic(nic_model=n['nic_model'], inventory_client=self, is_primary=n['is_primary'])
@@ -306,7 +312,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                 self._process_queue_batch()
             else:
                 self._process_queue_serial()
-
+        else:
+            display.vvvv("use cache")
 
         if cache_needs_update:
             cached_data = []
@@ -318,6 +325,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                     'nics': [{'nic_model': n._nic_model, 'is_primary': n.is_primary } for n in h.nics]
                 })
             self._cache[cache_key] = cached_data
+            display.vvvv("save cache")
 
 
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
@@ -514,7 +522,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 class AzureHost(object):
     _powerstate_regex = re.compile('^PowerState/(?P<powerstate>.+)$')
 
-    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False, powerstate=None):
+    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False, powerstate=None, update_nics=True):
         self._inventory_client = inventory_client
         self._vm_model = vm_model
         self._vmss = vmss
@@ -539,13 +547,14 @@ class AzureHost(object):
         else:
             self._powerstate = powerstate
 
-        nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
-        for nic in nic_refs:
-            # single-nic instances don't set primary, so figure it out...
-            is_primary = nic.get('properties', {}).get('primary', len(nic_refs) == 1)
-            inventory_client._enqueue_get(url=nic['id'], api_version=self._inventory_client._network_api_version,
-                                          handler=self._on_nic_response,
-                                          handler_args=dict(is_primary=is_primary))
+        if update_nics:
+            nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
+            for nic in nic_refs:
+                # single-nic instances don't set primary, so figure it out...
+                is_primary = nic.get('properties', {}).get('primary', len(nic_refs) == 1)
+                inventory_client._enqueue_get(url=nic['id'], api_version=self._inventory_client._network_api_version,
+                                              handler=self._on_nic_response,
+                                              handler_args=dict(is_primary=is_primary))
 
     @property
     def hostvars(self):
