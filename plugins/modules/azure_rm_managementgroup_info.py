@@ -282,8 +282,7 @@ class AzureRMManagementGroupInfo(AzureRMModuleBase):
                     id=parent_dict.get('id'),
                     name=parent_dict.get('name')
                 )
-
-        elif azure_object.type == 'asdfasdf/subscriptions':
+        elif azure_object.type == '/subscriptions':
             return_dict = dict(
                 display_name=azure_object.display_name,
                 id=azure_object.id,

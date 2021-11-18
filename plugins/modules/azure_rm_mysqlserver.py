@@ -87,7 +87,6 @@ options:
             - Server version.
         type: str
         choices:
-            - 5.6
             - 5.7
             - 8.0
     enforce_ssl:
@@ -109,6 +108,11 @@ options:
             - Create mode of SQL Server.
         default: Default
         type: str
+    restarted:
+        description:
+            - Set to C(true) with I(state=present) to restart a running mysql server.
+        default: False
+        type: bool
     state:
         description:
             - Assert the state of the MySQL Server. Use C(present) to create or update a server and C(absent) to delete it.
@@ -142,7 +146,7 @@ EXAMPLES = '''
         geo_redundant_backup: Disabled
         storage_autogrow: Disabled
       enforce_ssl: True
-      version: 5.6
+      version: 5.7
       admin_username: cloudsa
       admin_password: password
 '''
@@ -159,7 +163,7 @@ version:
         - Server version. Possible values include C(5.6), C(5.7), C(8.0).
     returned: always
     type: str
-    sample: 5.6
+    sample: 5.7
 state:
     description:
         - A state of a server that is visible to user. Possible values include C(Ready), C(Dropping), C(Disabled).
@@ -233,7 +237,7 @@ class AzureRMMySqlServers(AzureRMModuleBase):
             ),
             version=dict(
                 type='str',
-                choices=['5.6', '5.7', '8.0']
+                choices=['5.7', '8.0']
             ),
             enforce_ssl=dict(
                 type='bool',
@@ -245,6 +249,10 @@ class AzureRMMySqlServers(AzureRMModuleBase):
             ),
             admin_username=dict(
                 type='str'
+            ),
+            restarted=dict(
+                type='bool',
+                default=False
             ),
             admin_password=dict(
                 type='str',
@@ -261,6 +269,7 @@ class AzureRMMySqlServers(AzureRMModuleBase):
         self.name = None
         self.parameters = dict()
         self.tags = None
+        self.restarted = False
 
         self.results = dict(changed=False)
         self.state = None
@@ -312,11 +321,20 @@ class AzureRMMySqlServers(AzureRMModuleBase):
 
         if not old_response:
             self.log("MySQL Server instance doesn't exist")
+            if self.restarted:
+                self.fail("Mysql server instance doesn't exist, can't be restart")
+
             if self.state == 'absent':
                 self.log("Old instance didn't exist")
             else:
                 self.to_do = Actions.Create
         else:
+            if self.restarted:
+                self.restart_mysqlserver()
+                self.results['changed'] = True
+                self.results['state'] = old_response
+                return self.results
+
             self.log("MySQL Server instance already exists")
             if self.state == 'absent':
                 self.to_do = Actions.Delete
@@ -365,6 +383,18 @@ class AzureRMMySqlServers(AzureRMModuleBase):
             self.results["fully_qualified_domain_name"] = response["fully_qualified_domain_name"]
 
         return self.results
+
+    def restart_mysqlserver(self):
+        '''
+        Restart MySQL Server.
+        '''
+        self.log("Restart MySQL Server instance {0}".format(self.name))
+
+        try:
+            response = self.mysql_client.servers.restart(resource_group_name=self.resource_group, server_name=self.name)
+        except Exception as exc:
+            self.fail("Error restarting mysql server {0} - {1}".format(self.name, str(exc)))
+        return True
 
     def create_update_mysqlserver(self):
         '''

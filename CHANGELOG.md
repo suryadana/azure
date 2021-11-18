@@ -1,5 +1,61 @@
 # Change Log
 
+## v1.10.0 (2021-10-22)
+
+### NEW MODULES
+  - azure_rm_virtualmachinesize_info: VirtualMachineSize facts module ([#605](https://github.com/ansible-collections/azure/pull/605))
+  - azure_rm_diskencryptionset: New module: azure_rm_diskencryptionset ([#552](https://github.com/ansible-collections/azure/pull/552))
+  - azure_rm_diskencryptionset_info: New module: azure_rm_diskencryptionset ([#552](https://github.com/ansible-collections/azure/pull/552))
+
+### FEATURE ENHANCEMENT
+  - azure_rm_availabilityset: Add ProximityPlacementGroup to azure_rm_availabilityset ([#612](https://github.com/ansible-collections/azure/pull/612))
+  - main.yml: Update vmss test case ([#633](https://github.com/ansible-collections/azure/pull/633))
+  - main.yml: Enable VMSS TEST ([#634](https://github.com/ansible-collections/azure/pull/634))
+  - azure_rm_keyvault: Add new parameter enable_purge_protection to azure_rm_keyvault ([#643](https://github.com/ansible-collections/azure/pull/643))
+  - azure_rm_keyvault_info: Add new parameter enable_purge_protection to azure_rm_keyvault ([#643](https://github.com/ansible-collections/azure/pull/643))
+  - azure_rm_containerinstance: Fixed issue #232 Added Volume mount support for container instances ([#338](https://github.com/ansible-collections/azure/pull/338))
+  - azure_rm_containerinstance_info: Fixed issue #232 Added Volume mount support for container instances ([#338](https://github.com/ansible-collections/azure/pull/338))
+  - ignore-2.13.txt: Copy ignore-2.12.txt to ignore-2.13.txt ([#642](https://github.com/ansible-collections/azure/pull/642))
+  - azure_rm_mysqlserver: Add new parameter (azure_rm_mysqlserver.py)--- restarted ([#600](https://github.com/ansible-collections/azure/pull/600))
+
+### BUG FIXING
+  - azure_rm_virtualmachineimage_info: Support to get the latest version of a virtual machine image ([#617](https://github.com/ansible-collections/azure/pull/617))
+  - azure_rm_virtualmachine: azure_rm_virtualmachine: suppress no_log warning on ssh_password_enabled parameter ([#622](https://github.com/ansible-collections/azure/pull/622))
+  - azure_rm_mysqlserver: Remove version 5.6, bump minimum version from 5.6 to 5.7 ([#626](https://github.com/ansible-collections/azure/pull/626))
+  - azure_rm_manageddisk: Update azure_rm_manageddisk Doc to reflect return value ([#616]( https://github.com/ansible-collections/azure/pull/616))
+  - azure_rm_managementgroup_info: bugfix for azure_rm_managementgroup_info module, subscriptions not detected as correct type ([#630](https://github.com/ansible-collections/azure/pull/630))
+  - azure_rm_manageddisk: Fix manageddisk unmount documentation ([#649](https://github.com/ansible-collections/azure/pull/649))
+  - azure_rm_securitygroup: Fix azure_rm_securitygroup doc ([#640](https://github.com/ansible-collections/azure/pull/640))
+
+
+## v1.9.0 (2021-08-23)
+
+### NEW MODULES
+  - azure_rm_ddosprotectionplan: New module: azure_rm_ddosprotectionplan ([#493](https://github.com/ansible-collections/azure/pull/493))
+  - azure_rm_ddosprotectionplan_info: New module: azure_rm_ddosprotectionplan ([#493](https://github.com/ansible-collections/azure/pull/493))
+  - azure_rm_privateendpoint: Azure rm privateendpoint ([#593](https://github.com/ansible-collections/azure/pull/593))
+  - azure_rm_privateendpoint_info: Azure rm privateendpoint ([#593](https://github.com/ansible-collections/azure/pull/593))
+  - azure_rm_webappaccessrestriction: New modules for webapp network access restrictions ([#594](https://github.com/ansible-collections/azure/pull/594))
+  - azure_rm_webappaccessrestriction_info: New modules for webapp network access restrictions ([#594](https://github.com/ansible-collections/azure/pull/594))
+  - azure_rm_webappvnetconnection: New modules for webapp vnet connection ([#590](https://github.com/ansible-collections/azure/pull/590))
+  - azure_rm_webappvnetconnection_info: New modules for webapp vnet connection ([#590](https://github.com/ansible-collections/azure/pull/590))
+
+### FEATURE ENHANCEMENT
+  - azure_rm_networkinterface: Allow IPv6 with NetworkInterfaceIPConfiguration ([#582](https://github.com/ansible-collections/azure/pull/582))
+  - azure_rm_postgresqlserver: postgres server backup-support ([#566](https://github.com/ansible-collections/azure/pull/566))
+  - azure_rm_virtualmachine: Addition of Spot instance support for VM and VMSS ([#559](https://github.com/ansible-collections/azure/pull/559))
+  - azure_rm_virtualmachinescaleset: Addition of Spot instance support for VM and VMSS ([#559](https://github.com/ansible-collections/azure/pull/559))
+  - azure_rm_appgateway: Add support for application gateway path-based routing ([#452](https://github.com/ansible-collections/azure/pull/452))
+  - main.yml: Virtual machine test case update ([#595](https://github.com/ansible-collections/azure/pull/595))
+  - azure_rm_appgateway: Allow application gateway probe to use host header from HTTP settings ([#450](https://github.com/ansible-collections/azure/pull/450))
+  - azure_rm_*_info: Fixed dev branch sanity error ([#596](https://github.com/ansible-collections/azure/pull/596))
+
+### BUG FIXING
+  - runtime.yml: Add runtime.yml ([#587](https://github.com/ansible-collections/azure/pull/587))
+  - galaxy.yml: Add resource tags ([#592](https://github.com/ansible-collections/azure/pull/592))
+  - CONTRIBUTING.md: Update contributing notes for dev/testing ([#574](https://github.com/ansible-collections/azure/pull/574))
+  - main.yml: BUG FIX: Get latest VM image version ([#606](https://github.com/ansible-collections/azure/pull/606))
+
 ## v1.8.0 (2021-08-02)
 
 ### NEW MODULES
