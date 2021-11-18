@@ -23,11 +23,6 @@
   register: invalid_name
   ignore_errors: yes
 
-- name: Assert task failed
-  assert:
-    that:
-      - invalid_name['failed']
-
 - name: Validate expected states
   assert:
     that:

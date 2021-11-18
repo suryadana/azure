@@ -228,11 +228,9 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
         self.resource_group = None
         self.name = None
         self.tags = None
-
         super(AzureRMContainerInstanceInfo, self).__init__(self.module_arg_spec,
                                                            supports_check_mode=True,
                                                            supports_tags=True)
-
 
     def exec_module(self, **kwargs):
 

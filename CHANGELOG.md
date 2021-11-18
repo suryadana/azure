@@ -56,6 +56,7 @@
   - CONTRIBUTING.md: Update contributing notes for dev/testing ([#574](https://github.com/ansible-collections/azure/pull/574))
   - main.yml: BUG FIX: Get latest VM image version ([#606](https://github.com/ansible-collections/azure/pull/606))
 
+
 ## v1.8.0 (2021-08-02)
 
 ### NEW MODULES

@@ -388,6 +388,7 @@
      network_profile:
           load_balancer_sku: standard
    register: output
+   ignore_errors: yes
 
  - name: Assert the AKS instance is well created
    assert:
