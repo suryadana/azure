@@ -290,10 +290,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                 results = self._cache[cache_key]
                 for h in results:
                     ah = AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate'], nics=h['nics'])
-
                     self._hosts.append(ah)
-
-                  #self._hosts.append(AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate']))
             except KeyError:
                 cache_needs_update = True
 
@@ -322,7 +319,6 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                 })
             self._cache[cache_key] = cached_data
             display.vvvv("save cache")
-
 
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
         constructable_config_compose = self.get_option('hostvar_expressions')
