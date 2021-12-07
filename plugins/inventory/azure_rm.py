@@ -292,7 +292,11 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 
     def _get_hosts(self, path, cache):
         # Cache logic
-        if cache:
+        cache_force_update = os.environ.get("FORCE_UPDATE_CACHE", False)
+        if cache and cache_force_update:
+            cache = None
+            cache_key = self.get_cache_key(path)
+        elif cache:
             cache = self.get_option("cache")
             cache_key = self.get_cache_key(path)
         else:
@@ -307,11 +311,22 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                     self._hosts.append(ah)
             except KeyError:
                 cache_needs_update = True
-
-        if os.environ.get("ONLY_CACHE", False) and ( not cache or cache_needs_update ):
-            print("aaa")
-            self.fetch_from_az()
         
+        if not cache or cache_needs_update:
+            for vm_rg in self.get_option('include_vm_resource_groups'):
+                self._enqueue_vm_list(vm_rg)
+
+            for vmss_rg in self.get_option('include_vmss_resource_groups'):
+                self._enqueue_vmss_list(vmss_rg)
+
+            if self._batch_fetch:
+                self._process_queue_batch()
+            else:
+                self._process_queue_serial()
+        else:
+            display.vvvv("use cache")
+
+        if cache_needs_update:
             cached_data = []
             for h in self._hosts:
                 cached_data.append({
@@ -322,8 +337,6 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                 })
             self._cache[cache_key] = cached_data
             display.vvvv("save cache")
-        else:
-            display.vvvv("use cache")
 
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
         constructable_config_compose = self.get_option('hostvar_expressions')
