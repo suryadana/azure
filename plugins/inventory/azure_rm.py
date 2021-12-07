@@ -229,8 +229,6 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         except Exception:
             raise
 
-        
-
     def _credential_setup(self):
         auth_options = dict(
             auth_source=self.get_option('auth_source'),
@@ -313,16 +311,18 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                 cache_needs_update = True
         
         if not cache or cache_needs_update:
-            for vm_rg in self.get_option('include_vm_resource_groups'):
-                self._enqueue_vm_list(vm_rg)
+            
+            self.fetch_from_az()
+            # for vm_rg in self.get_option('include_vm_resource_groups'):
+            #     self._enqueue_vm_list(vm_rg)
 
-            for vmss_rg in self.get_option('include_vmss_resource_groups'):
-                self._enqueue_vmss_list(vmss_rg)
+            # for vmss_rg in self.get_option('include_vmss_resource_groups'):
+            #     self._enqueue_vmss_list(vmss_rg)
 
-            if self._batch_fetch:
-                self._process_queue_batch()
-            else:
-                self._process_queue_serial()
+            # if self._batch_fetch:
+            #     self._process_queue_batch()
+            # else:
+            #     self._process_queue_serial()
         else:
             display.vvvv("use cache")
 
@@ -333,7 +333,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                     'vm_model': h._vm_model,
                     'vmss': h._vmss,
                     'powerstate': h._powerstate,
-                    'nics': [{'nic_model': n._nic_model, 'is_primary': n.is_primary } for n in h.nics]
+                    'nics': [{'nic_model': n._nic_model, 'is_primary': n.is_primary} for n in h.nics]
                 })
             self._cache[cache_key] = cached_data
             display.vvvv("save cache")
@@ -559,7 +559,7 @@ class AzureHost(object):
 
         if nics:
             for n in nics:
-                nic = AzureNic(nic_model=n['nic_model'], inventory_client=self, is_primary=n['is_primary'])
+                nic = AzureNic(nic_model=n['nic_model'], inventory_client=inventory_client, is_primary=n['is_primary'])
                 self.nics.append(nic)
         else:
             nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
@@ -629,12 +629,12 @@ class AzureHost(object):
                 if pip_id:
                     new_hostvars['public_ip_id'] = pip_id
 
-                    pip = nic.public_ips[pip_id]
-                    new_hostvars['public_ip_name'] = pip._pip_model['name']
-                    new_hostvars['public_ipv4_addresses'].append(pip._pip_model['properties'].get('ipAddress', None))
-                    pip_fqdn = pip._pip_model['properties'].get('dnsSettings', {}).get('fqdn')
-                    if pip_fqdn:
-                        new_hostvars['public_dns_hostnames'].append(pip_fqdn)
+                    # pip = nic.public_ips[pip_id]
+                    # new_hostvars['public_ip_name'] = pip._pip_model['name']
+                    # new_hostvars['public_ipv4_addresses'].append(pip._pip_model['properties'].get('ipAddress', None))
+                    # pip_fqdn = pip._pip_model['properties'].get('dnsSettings', {}).get('fqdn')
+                    # if pip_fqdn:
+                    #     new_hostvars['public_dns_hostnames'].append(pip_fqdn)
 
             new_hostvars['mac_address'] = nic._nic_model['properties'].get('macAddress')
             new_hostvars['network_interface'] = nic._nic_model['name']
@@ -697,16 +697,16 @@ class AzureNic(object):
         self.is_primary = is_primary
         self._inventory_client = inventory_client
 
-        self.public_ips = {}
+        # self.public_ips = {}
 
-        if nic_model.get('properties', {}).get('ipConfigurations'):
-            for ipc in nic_model['properties']['ipConfigurations']:
-                pip = ipc['properties'].get('publicIPAddress')
-                if pip:
-                    self._inventory_client._enqueue_get(url=pip['id'], api_version=self._inventory_client._network_api_version, handler=self._on_pip_response)
+        # if nic_model.get('properties', {}).get('ipConfigurations'):
+        #     for ipc in nic_model['properties']['ipConfigurations']:
+        #         pip = ipc['properties'].get('publicIPAddress')
+        #         if pip:
+        #             self._inventory_client._enqueue_get(url=pip['id'], api_version=self._inventory_client._network_api_version, handler=self._on_pip_response)
 
-    def _on_pip_response(self, pip_model):
-        self.public_ips[pip_model['id']] = AzurePip(pip_model)
+    # def _on_pip_response(self, pip_model):
+    #     self.public_ips[pip_model['id']] = AzurePip(pip_model)
 
 
 class AzurePip(object):
