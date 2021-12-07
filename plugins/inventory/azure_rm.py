@@ -223,7 +223,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 
         
         try:
-            self._credential_setup()
+            
             self._get_hosts(path=path, cache=cache)
         except Exception:
             raise
@@ -276,6 +276,19 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         url = url.format(subscriptionId=self._clientconfig.subscription_id, rg=rg)
         self._enqueue_get(url=url, api_version=self._compute_api_version, handler=self._on_vmss_page_response)
 
+    def fetch_from_az(self):
+        self._credential_setup()
+        for vm_rg in self.get_option('include_vm_resource_groups'):
+            self._enqueue_vm_list(vm_rg)
+
+        for vmss_rg in self.get_option('include_vmss_resource_groups'):
+            self._enqueue_vmss_list(vmss_rg)
+
+        if self._batch_fetch:
+            self._process_queue_batch()
+        else:
+            self._process_queue_serial()
+
     def _get_hosts(self, path, cache):
         # Cache logic
         if cache:
@@ -294,21 +307,11 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             except KeyError:
                 cache_needs_update = True
 
-        if not cache or cache_needs_update:
-            for vm_rg in self.get_option('include_vm_resource_groups'):
-                self._enqueue_vm_list(vm_rg)
-
-            for vmss_rg in self.get_option('include_vmss_resource_groups'):
-                self._enqueue_vmss_list(vmss_rg)
-
-            if self._batch_fetch:
-                self._process_queue_batch()
-            else:
-                self._process_queue_serial()
-        else:
-            display.vvvv("use cache")
-
-        if cache_needs_update:
+        print( "fetch_from_az: ", self.get_option("fetch_from_az", False) )
+        
+        if self.get_option("fetch_from_az", False) and ( not cache or cache_needs_update ):
+            self.fetch_from_az()
+        
             cached_data = []
             for h in self._hosts:
                 cached_data.append({
@@ -319,6 +322,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
                 })
             self._cache[cache_key] = cached_data
             display.vvvv("save cache")
+        else:
+            display.vvvv("use cache")
 
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
         constructable_config_compose = self.get_option('hostvar_expressions')
