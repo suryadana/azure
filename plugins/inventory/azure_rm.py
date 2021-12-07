@@ -118,6 +118,7 @@ import hashlib
 import json
 import re
 import uuid
+import os
 
 try:
     from queue import Queue, Empty
@@ -307,9 +308,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             except KeyError:
                 cache_needs_update = True
 
-        print( "fetch_from_az: ", self.get_option("fetch_from_az", False) )
-        
-        if self.get_option("fetch_from_az", False) and ( not cache or cache_needs_update ):
+        if os.environ.get("ONLY_CACHE", False) and ( not cache or cache_needs_update ):
+            print("aaa")
             self.fetch_from_az()
         
             cached_data = []
