@@ -46,6 +46,21 @@ options:
             expression in the list is evaluated for each host; when the expression is true, the host is excluded
             from the inventory.
         default: []
+    cache:
+        description: use cache.
+        default: true
+    cache_connection:
+        description: cache connection.
+        default: "/tmp"
+    cache_timeout:
+        description: cache connection.
+        default: 3600
+    cache_prefix:
+        description: cache connection.
+        default: ""
+    cache_plugin:
+        description: cache connection.
+        default: "jsonfile"
     batch_fetch:
         description: To improve performance, results are fetched using an unsupported batch API. Disabling
             C(batch_fetch) uses a much slower serial fetch, resulting in many more round-trips. Generally only

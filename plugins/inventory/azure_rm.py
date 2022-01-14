@@ -120,12 +120,14 @@ except ImportError:
 
 from collections import namedtuple
 from ansible import release
-from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
+from ansible.plugins.inventory import BaseInventoryPlugin, Constructable, Cacheable
 from ansible.module_utils.six import iteritems
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMAuth
 from ansible.errors import AnsibleParserError, AnsibleError
 from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.module_utils._text import to_native, to_bytes, to_text
+from ansible.utils.display import Display
+
 from itertools import chain
 
 try:
@@ -142,6 +144,7 @@ except ImportError:
     Deserializer = object
     pass
 
+display = Display()
 
 class AzureRMRestConfiguration(AzureConfiguration):
     def __init__(self, credentials, subscription_id, base_url=None):
@@ -165,7 +168,7 @@ UrlAction = namedtuple('UrlAction', ['url', 'api_version', 'handler', 'handler_a
 
 
 # FUTURE: add Cacheable support once we have a sane serialization format
-class InventoryModule(BaseInventoryPlugin, Constructable):
+class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 
     NAME = 'azure.azcollection.azure_rm'
 
@@ -217,7 +220,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
         try:
             self._credential_setup()
-            self._get_hosts()
+            self._get_hosts(path=path, cache=cache)
         except Exception:
             raise
 
@@ -266,7 +269,8 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         url = url.format(subscriptionId=self._clientconfig.subscription_id, rg=rg)
         self._enqueue_get(url=url, api_version=self._compute_api_version, handler=self._on_vmss_page_response)
 
-    def _get_hosts(self):
+    def fetch_from_az(self):
+        self._credential_setup()
         for vm_rg in self.get_option('include_vm_resource_groups'):
             self._enqueue_vm_list(vm_rg)
 
@@ -278,6 +282,47 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         else:
             self._process_queue_serial()
 
+    def _get_hosts(self, path, cache):
+        if cache:
+            cache = self.get_option("cache")
+            cache_key = self.get_cache_key(path)
+        else:
+            cache_key = None
+
+        cache_needs_update = False
+        if cache:
+            try:
+                results = self._cache[cache_key]
+                for h in results:
+                  self._hosts.append(AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate']))
+            except KeyError:
+                cache_needs_update = True
+
+        if not cache or cache_needs_update:
+            for vm_rg in self.get_option('include_vm_resource_groups'):
+                self._enqueue_vm_list(vm_rg)
+
+            for vmss_rg in self.get_option('include_vmss_resource_groups'):
+                self._enqueue_vmss_list(vmss_rg)
+
+            if self._batch_fetch:
+                self._process_queue_batch()
+            else:
+                self._process_queue_serial()
+        else:
+            display.vvvv("use cache")
+
+        if cache_needs_update:
+            cached_data = []
+            for h in self._hosts:
+                cached_data.append({
+                    'vm_model': h._vm_model,
+                    'vmss': h._vmss,
+                    'powerstate': h._powerstate,
+                    'nics': [{'nic_model': n._nic_model, 'is_primary': n.is_primary} for n in h.nics]
+                })
+            self._cache[cache_key] = cached_data
+            
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
         constructable_config_compose = self.get_option('hostvar_expressions')
         constructable_config_groups = self.get_option('conditional_groups')
@@ -469,7 +514,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 class AzureHost(object):
     _powerstate_regex = re.compile('^PowerState/(?P<powerstate>.+)$')
 
-    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False):
+    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False, powerstate=None, nics=None):
         self._inventory_client = inventory_client
         self._vm_model = vm_model
         self._vmss = vmss
@@ -486,16 +531,23 @@ class AzureHost(object):
             self.default_inventory_hostname = '{0}_{1}'.format(vm_model['name'], hashlib.sha1(to_bytes(vm_model['id'])).hexdigest()[0:4])
 
         self._hostvars = {}
-
-        inventory_client._enqueue_get(url="{0}/instanceView".format(vm_model['id']),
+        if powerstate == None:
+            inventory_client._enqueue_get(url="{0}/instanceView".format(vm_model['id']),
                                       api_version=self._inventory_client._compute_api_version,
                                       handler=self._on_instanceview_response)
+        else:
+            self._powerstate = powerstate
 
-        nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
-        for nic in nic_refs:
-            # single-nic instances don't set primary, so figure it out...
-            is_primary = nic.get('properties', {}).get('primary', len(nic_refs) == 1)
-            inventory_client._enqueue_get(url=nic['id'], api_version=self._inventory_client._network_api_version,
+        if nics:
+            for n in nics:
+                nic = AzureNic(nic_model=n['nic_model'], inventory_client=inventory_client, is_primary=n['is_primary'])
+                self.nics.append(nic)
+        else:
+            nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
+            for nic in nic_refs:
+                # single-nic instances don't set primary, so figure it out...
+                is_primary = nic.get('properties', {}).get('primary', len(nic_refs) == 1)
+                inventory_client._enqueue_get(url=nic['id'], api_version=self._inventory_client._network_api_version,
                                           handler=self._on_nic_response,
                                           handler_args=dict(is_primary=is_primary))
 
