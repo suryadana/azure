@@ -11,6 +11,7 @@ DOCUMENTATION = r'''
     extends_documentation_fragment:
       - azure.azcollection.azure
       - azure.azcollection.azure_rm
+      - inventory_cache
       - constructed
     description:
         - Query VM details from Azure Resource Manager
@@ -120,13 +121,14 @@ except ImportError:
 
 from collections import namedtuple
 from ansible import release
-from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
+from ansible.plugins.inventory import BaseInventoryPlugin, Constructable, Cacheable
 from ansible.module_utils.six import iteritems
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMAuth
 from ansible.errors import AnsibleParserError, AnsibleError
 from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.module_utils._text import to_native, to_bytes, to_text
 from itertools import chain
+from ansible.utils.display import Display
 
 try:
     from msrest import ServiceClient, Serializer, Deserializer
@@ -142,6 +144,7 @@ except ImportError:
     Deserializer = object
     pass
 
+display = Display()
 
 class AzureRMRestConfiguration(AzureConfiguration):
     def __init__(self, credentials, subscription_id, base_url=None):
@@ -164,8 +167,8 @@ class AzureRMRestConfiguration(AzureConfiguration):
 UrlAction = namedtuple('UrlAction', ['url', 'api_version', 'handler', 'handler_args'])
 
 
-# FUTURE: add Cacheable support once we have a sane serialization format
-class InventoryModule(BaseInventoryPlugin, Constructable):
+# ( Azure has no FUTURE, Baby RQ has to implement cachable supporting by herself. )
+class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
 
     NAME = 'azure.azcollection.azure_rm'
 
@@ -217,7 +220,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
         try:
             self._credential_setup()
-            self._get_hosts()
+            self._get_hosts(path=path, cache=cache)
         except Exception:
             raise
 
@@ -244,6 +247,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         self._client = ServiceClient(self._clientconfig.credentials, self._clientconfig)
 
     def _enqueue_get(self, url, api_version, handler, handler_args=None):
+        display.vvvv("_enqueue_get %s" % url)
         if not handler_args:
             handler_args = {}
         self._request_queue.put_nowait(UrlAction(url=url, api_version=api_version, handler=handler, handler_args=handler_args))
@@ -266,17 +270,45 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         url = url.format(subscriptionId=self._clientconfig.subscription_id, rg=rg)
         self._enqueue_get(url=url, api_version=self._compute_api_version, handler=self._on_vmss_page_response)
 
-    def _get_hosts(self):
-        for vm_rg in self.get_option('include_vm_resource_groups'):
-            self._enqueue_vm_list(vm_rg)
-
-        for vmss_rg in self.get_option('include_vmss_resource_groups'):
-            self._enqueue_vmss_list(vmss_rg)
-
-        if self._batch_fetch:
-            self._process_queue_batch()
+    def _get_hosts(self, path, cache):
+        # Cache logic
+        if cache:
+            cache = self.get_option("cache")
+            cache_key = self.get_cache_key(path)
         else:
-            self._process_queue_serial()
+            cache_key = None
+
+        cache_needs_update = False
+        if cache:
+            try:
+                results = self._cache[cache_key]
+                for h in results:
+                  self._hosts.append(AzureHost(h['vm_model'], self, vmss=h['vmss'], legacy_name=self._legacy_hostnames, powerstate=h['powerstate']))
+            except KeyError:
+                cache_needs_update = True
+
+        if not cache or cache_needs_update:
+            for vm_rg in self.get_option('include_vm_resource_groups'):
+                self._enqueue_vm_list(vm_rg)
+
+            for vmss_rg in self.get_option('include_vmss_resource_groups'):
+                self._enqueue_vmss_list(vmss_rg)
+
+            if self._batch_fetch:
+                self._process_queue_batch()
+            else:
+                self._process_queue_serial()
+
+
+        if cache_needs_update:
+            cached_data = []
+            for h in self._hosts:
+                cached_data.append({
+                    'vm_model': h._vm_model,
+                    'vmss': h._vmss,
+                    'powerstate': h._powerstate
+                })
+            self._cache[cache_key] = cached_data
 
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
         constructable_config_compose = self.get_option('hostvar_expressions')
@@ -469,7 +501,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 class AzureHost(object):
     _powerstate_regex = re.compile('^PowerState/(?P<powerstate>.+)$')
 
-    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False):
+    def __init__(self, vm_model, inventory_client, vmss=None, legacy_name=False, powerstate=None):
         self._inventory_client = inventory_client
         self._vm_model = vm_model
         self._vmss = vmss
@@ -487,10 +519,12 @@ class AzureHost(object):
 
         self._hostvars = {}
 
-        inventory_client._enqueue_get(url="{0}/instanceView".format(vm_model['id']),
+        if powerstate == None:
+            inventory_client._enqueue_get(url="{0}/instanceView".format(vm_model['id']),
                                       api_version=self._inventory_client._compute_api_version,
                                       handler=self._on_instanceview_response)
-
+        else:
+            self._powerstate = powerstate
         nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
         for nic in nic_refs:
             # single-nic instances don't set primary, so figure it out...
