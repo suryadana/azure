@@ -543,6 +543,12 @@ class AzureHost(object):
 
         self._hostvars = {}
         if powerstate == None:
+            #  if vmss:
+                #  display.vvvv("ID : " + vm_model['id'])
+                #  inventory_client._enqueue_get(url=vm_model['id'],
+                                          #  api_version='2021-07-01',
+                                          #  handler=self._on_virtualview_response)
+            #  else:
             inventory_client._enqueue_get(url="{0}/instanceView".format(vm_model['id']),
                                       api_version=self._inventory_client._compute_api_version,
                                       handler=self._on_instanceview_response)
@@ -557,7 +563,7 @@ class AzureHost(object):
             nic_refs = vm_model['properties']['networkProfile']['networkInterfaces']
             for nic in nic_refs:
                 # single-nic instances don't set primary, so figure it out...
-                is_primary = nic.get('properties', {}).get('primary', len(nic_refs) == 1)
+                is_primary = nic.get('properties', {}).get('primary', len(nic_refs) == 1) 
                 inventory_client._enqueue_get(url=nic['id'], api_version=self._inventory_client._network_api_version,
                                           handler=self._on_nic_response,
                                           handler_args=dict(is_primary=is_primary))
@@ -613,10 +619,26 @@ class AzureHost(object):
         # set nic-related values from the primary NIC first
         for nic in sorted(self.nics, key=lambda n: n.is_primary, reverse=True):
             # and from the primary IP config per NIC first
+            if self._vmss:
+                nic_model = nic._nic_model
+                pip_id = f"{nic_model['id']}/ipConfigurations/{nic_model['name']}-defaultIpConfiguration/publicIPAddresses/publicIp-{nic_model['name']}"
+                new_hostvars['public_ip_id'] = pip_id 
+                pip = nic.public_ips[pip_id]
+                if isinstance(pip, dict) and 'pip_model' in pip:
+                    pip = AzurePip(pip['pip_model'])
+                
+                new_hostvars['public_ip_name'] = pip._pip_model['name']
+                new_hostvars['public_ipv4_addresses'].append(pip._pip_model['properties'].get('ipAddress', None))
+                pip_fqdn = pip._pip_model['properties'].get('dnsSettings', {}).get('fqdn')
+                if pip_fqdn:
+                    new_hostvars['public_dns_hostnames'].append(pip_fqdn)
+
+                continue
+
             for ipc in sorted(nic._nic_model['properties']['ipConfigurations'], key=lambda i: i['properties'].get('primary', False), reverse=True):
-                private_ip = ipc['properties'].get('privateIPAddress')
-                if private_ip:
-                    new_hostvars['private_ipv4_addresses'].append(private_ip)
+                #  private_ip = ipc['properties'].get('privateIPAddress')
+                #  if private_ip:
+                    #  new_hostvars['private_ipv4_addresses'].append(private_ip)
                 pip_id = ipc['properties'].get('publicIPAddress', {}).get('id')
                 if pip_id:
                     new_hostvars['public_ip_id'] = pip_id
@@ -684,15 +706,16 @@ class AzureHost(object):
                                  for s in vm_instanceview_model.get('statuses', []) if self._powerstate_regex.match(s.get('code', ''))), 'unknown')
 
     def _on_nic_response(self, nic_model, is_primary=False, public_ips={}):
-        nic = AzureNic(nic_model=nic_model, inventory_client=self._inventory_client, is_primary=is_primary, public_ips=public_ips)
+        nic = AzureNic(nic_model=nic_model, inventory_client=self._inventory_client, is_primary=is_primary, public_ips=public_ips, vmss=self._vmss)
         self.nics.append(nic)
 
 
 class AzureNic(object):
-    def __init__(self, nic_model, inventory_client, is_primary=False, public_ips={}):
+    def __init__(self, nic_model, inventory_client, is_primary=False, public_ips={}, vmss=None):
         self._nic_model = nic_model
         self.is_primary = is_primary
         self._inventory_client = inventory_client
+        self._vmss = vmss
 
         self.public_ips = public_ips
 
@@ -701,8 +724,17 @@ class AzureNic(object):
                 pip = ipc['properties'].get('publicIPAddress')
                 if pip and pip['id'] not in self.public_ips:
                     self._inventory_client._enqueue_get(url=pip['id'], api_version=self._inventory_client._network_api_version, handler=self._on_pip_response)
+        if self._vmss:
+            if f"{nic_model['id']}/ipConfigurations/{nic_model['name']}-defaultIpConfiguration/publicIPAddresses/publicIp-{nic_model['name']}" not in self.public_ips: 
+                self._inventory_client._enqueue_get(
+                        url=f"{nic_model['id']}/ipConfigurations/{nic_model['name']}-defaultIpConfiguration/publicIPAddresses/publicIp-{nic_model['name']}",
+                        api_version='2021-11-01', handler=self._on_pip_vmss_response
+                    )
 
     def _on_pip_response(self, pip_model):
+        self.public_ips[pip_model['id']] = AzurePip(pip_model)
+
+    def _on_pip_vmss_response(self, pip_model):
         self.public_ips[pip_model['id']] = AzurePip(pip_model)
 
 
@@ -712,4 +744,4 @@ class AzurePip(object):
 
     # def toJson(self):
     #     return json.dumps(self, default=lambda o: o.__dict__)
-        
+ 
